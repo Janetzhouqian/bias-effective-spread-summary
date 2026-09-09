@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《有效买卖价差中的偏差》论文总结</title>
+  <style>
+    :root {
+      --navy: #17324d;
+      --blue: #2d6f9f;
+      --teal: #1d857a;
+      --ink: #202936;
+      --muted: #5d6b78;
+      --line: #dbe4ea;
+      --soft: #f4f8fa;
+      --accent: #fff4dd;
+      --accent-line: #e4b95d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eef2f5;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      line-height: 1.75;
+    }
+    .page {
+      max-width: 1060px;
+      margin: 32px auto;
+      background: #fff;
+      padding: 54px 68px 64px;
+      box-shadow: 0 8px 30px rgba(23, 50, 77, .08);
+    }
+    header {
+      border-bottom: 3px solid var(--navy);
+      padding-bottom: 24px;
+      margin-bottom: 34px;
+    }
+    .eyebrow {
+      color: var(--teal);
+      font-size: 14px;
+      letter-spacing: .08em;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    h1, h2, h3 { color: var(--navy); line-height: 1.35; }
+    h1 { font-size: 31px; margin: 0 0 12px; }
+    h2 {
+      font-size: 22px;
+      margin: 38px 0 15px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    h3 { font-size: 18px; margin: 26px 0 9px; }
+    p { margin: 10px 0 15px; }
+    .meta { color: var(--muted); font-size: 14px; }
+    .lead {
+      background: var(--soft);
+      border-left: 5px solid var(--blue);
+      padding: 18px 22px;
+      margin: 20px 0 26px;
+      font-size: 17px;
+    }
+    .key {
+      background: var(--accent);
+      border: 1px solid #f0d79d;
+      border-left: 5px solid var(--accent-line);
+      padding: 18px 22px;
+      margin: 18px 0 24px;
+    }
+    .key strong { color: #785612; }
+    .formula {
+      background: #f7f9fb;
+      border: 1px solid var(--line);
+      padding: 13px 18px;
+      margin: 12px 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 18px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0 22px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      color: #fff;
+      background: var(--navy);
+      font-weight: 700;
+    }
+    tr:nth-child(even) td { background: #fafcfd; }
+    ol, ul { padding-left: 25px; }
+    li { margin: 7px 0; }
+    code {
+      color: #17324d;
+      background: #eef4f8;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: Consolas, "Liberation Mono", monospace;
+    }
+    .small { color: var(--muted); font-size: 13px; }
+    footer {
+      margin-top: 42px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 720px) {
+      .page { margin: 0; padding: 30px 22px 42px; }
+      h1 { font-size: 26px; }
+      h2 { font-size: 20px; }
+      table { display: block; overflow-x: auto; white-space: normal; }
+    }
+    @media print {
+      body { background: #fff; }
+      .page { margin: 0; max-width: none; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="eyebrow">PAPER SUMMARY · MARKET MICROSTRUCTURE</div>
+      <h1>《Bias in the effective bid-ask spread》论文总结</h1>
+      <div class="meta">作者：Björn Hagströmer　|　期刊：Journal of Financial Economics 142（2021）314–337</div>
+      <div class="meta">中文标题：有效买卖价差中的偏差　|　基于本地双语 PDF 整理</div>
+    </header>
+
+    <section class="lead">
+      <strong>一句话概括：</strong>
+      传统以买卖盘中点（midpoint）为基本价值代理来计算有效买卖价差，会在离散报价且交易者具有弹性流动性需求的市场中系统性高估真实交易成本；这种偏差还会改变流动性排序、交易场所比较和交易绩效评价。
+    </section>
+
+    <section>
+      <h2>一、论文在讲什么</h2>
+      <p>
+        有效买卖价差本来用于衡量一笔立即成交的交易相对于证券真实基本价值所支付的成本。由于真实基本价值无法直接观察，实务和学术研究通常使用最优买价与最优卖价的平均值，也就是买卖盘中点，作为基本价值的替代。
+      </p>
+      <p>
+        论文指出，这种做法隐含了一个容易被忽视的假设：真实基本价值位于买价和卖价的正中间。但在实际市场中，价格是离散的，真实价值是连续的，做市商也未必能围绕真实价值对称报价。因此，买方主动成交和卖方主动成交的真实成本可能不同。
+      </p>
+      <p>
+        如果交易者能够识别这种不对称，并主动选择交易成本更低的一侧，那么成交方向就不再是随机的。此时，成交样本会系统性偏向“便宜的一侧”，而 midpoint 计算仍把买卖价差看作对称成本，最终导致有效价差被高估。
+      </p>
+    </section>
+
+    <section>
+      <h2>二、核心观点</h2>
+      <div class="key">
+        <strong>核心观点：</strong>“中点有效价差”不是一个普遍无偏的真实交易成本估计量。只要市场存在离散 tick、订单簿不对称，以及交易者会对交易成本差异作出反应，midpoint 方法就会产生正向偏差。
+      </div>
+      <p>论文强调的不是有效价差概念错误，而是其基本价值代理变量选择得过于粗糙。主要结论可以归纳为：</p>
+      <ul>
+        <li>中点有效价差平均高估真实有效价差。</li>
+        <li>偏差在低价股、相对 tick size 较大的股票中更严重。</li>
+        <li>偏差在不同股票、交易场所和投资者群体之间并不相同。</li>
+        <li>因此，基于 midpoint 的流动性排名和交易绩效比较可能产生错误结论。</li>
+        <li>使用订单簿深度和不平衡信息构造 weighted midpoint 或 micro-price，可以缓解这一问题。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>三、直观例子：为什么 midpoint 会高估</h2>
+      <p>
+        论文给出一个例子：某股票真实基本价值为 25.0025 美元，市场允许的最近报价为买价 25.00 美元和卖价 25.01 美元。
+      </p>
+      <table>
+        <thead>
+          <tr><th>交易方向</th><th>成交价格</th><th>相对真实价值的单边距离</th><th>有效价差</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>卖方主动，以 bid 成交</td><td>25.00</td><td>0.25 美分</td><td>0.50 美分</td></tr>
+          <tr><td>买方主动，以 ask 成交</td><td>25.01</td><td>0.75 美分</td><td>1.50 美分</td></tr>
+          <tr><td>midpoint 方法</td><td>25.005</td><td>假设两侧对称</td><td>1.00 美分</td></tr>
+        </tbody>
+      </table>
+      <p>
+        真实成本在买卖两侧是不对称的。如果交易者知道卖方主动成交一侧更便宜，就会有更多订单在 bid 侧成交。平均下来，真实有效价差低于 midpoint 方法计算出的 1 美分，但 midpoint 估计并不会跟随这种订单流偏移。
+      </p>
+    </section>
+
+    <section>
+      <h2>四、作者如何进行理论论证</h2>
+      <h3>1. 定义真实有效价差和估计有效价差</h3>
+      <p>论文将真实有效价差定义为：</p>
+      <div class="formula">S = 2D(P − X)</div>
+      <p>
+        其中，<code>P</code> 是成交价，<code>X</code> 是交易时点的真实基本价值，<code>D</code> 是交易方向：买方发起为 +1，卖方发起为 −1。
+      </p>
+      <p>实际研究中无法观察 <code>X</code>，只能使用代理变量 <code>X̃</code>，于是估计有效价差为：</p>
+      <div class="formula">S̃ = 2D(P − X̃)</div>
+      <h3>2. 推导无偏条件</h3>
+      <p>估计误差的期望为：</p>
+      <div class="formula">E[S̃ − S] = 2E[D(X − X̃)]</div>
+      <p>
+        因此，有效价差估计量无偏的充要条件是：
+      </p>
+      <div class="formula">交易方向 D 与基本价值估计误差 (X − X̃) 不相关</div>
+      <p>
+        对 midpoint 方法而言，如果投资者不知道真实价值偏离 midpoint 的方向，或者订单流完全不受交易成本影响，这一条件可能成立。但只要交易者能够识别偏离方向，并据此调整买卖方向，相关性就会出现，估计量就会有偏。
+      </p>
+      <h3>3. 为什么偏差是正的</h3>
+      <p>
+        当真实价值更靠近 bid 时，卖方主动成交成本更低，卖方订单相对更多；当真实价值更靠近 ask 时，买方主动成交成本更低，买方订单相对更多。也就是说，交易流会更多地出现在价差的窄端。
+      </p>
+      <p>
+        midpoint 方法却默认买卖两端围绕中点对称，不能识别真实价值的位置和订单流的选择性。于是，计算得到的平均有效价差高于交易者实际支付的平均成本。
+      </p>
+    </section>
+
+    <section>
+      <h2>五、作者提出的替代方法</h2>
+      <h3>1. 加权中点（Weighted Midpoint）</h3>
+      <p>加权中点利用最优买价和卖价上的订单深度：</p>
+      <div class="formula">X̃<sub>wm</sub> = (P<sub>B</sub>Q<sub>A</sub> + P<sub>A</sub>Q<sub>B</sub>) / (Q<sub>A</sub> + Q<sub>B</sub>)</div>
+      <p>
+        其中，<code>P<sub>B</sub></code> 和 <code>P<sub>A</sub></code> 分别是最优买价和最优卖价，<code>Q<sub>B</sub></code> 和 <code>Q<sub>A</sub></code> 是两侧的报价深度。
+      </p>
+      <p>
+        它的直觉是：订单簿深度不平衡包含基本价值信息。加权中点不是简单取价格平均，而是让订单较薄的一侧对估计价格产生更大权重，从而使估计值能够偏向更可能的真实价值。
+      </p>
+      <h3>2. 微观价格（Micro-price）</h3>
+      <p>
+        micro-price 在订单簿不平衡的基础上，进一步考虑未来买卖盘中点变化的概率和幅度。它可以理解为对当前 midpoint 的预测性调整，目标是更准确地刻画短期有效价格。
+      </p>
+      <p>
+        论文认为，从理论上看 micro-price 更有吸引力，因为它被构造成鞅；但 weighted midpoint 更容易实时计算，且只需要常见的盘口价格和深度数据。
+      </p>
+    </section>
+
+    <section>
+      <h2>六、实证设计与主要结果</h2>
+      <h3>1. 数据</h3>
+      <ul>
+        <li>2015年12月7日至11日的 S&amp;P 500 成分股交易和报价数据。</li>
+        <li>Nasdaq 提供的带有 HFT 标识的美国股票交易数据，用于区分高频交易者与非高频交易者。</li>
+        <li>1996年至2015年 NYSE 普通股的长期样本，用于研究偏差的时间变化和市值分组差异。</li>
+      </ul>
+      <h3>2. 有效价差大小</h3>
+      <table>
+        <thead>
+          <tr><th>估计方法</th><th>平均有效价差</th><th>相对 midpoint 的含义</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Midpoint</td><td>3.22 bps</td><td>传统方法</td></tr>
+          <tr><td>Weighted midpoint</td><td>2.84 bps</td><td>midpoint 高估约 13%</td></tr>
+          <tr><td>Micro-price</td><td>与 weighted midpoint 结果高度一致</td><td>midpoint 高估约 18%</td></tr>
+        </tbody>
+      </table>
+      <h3>3. 偏差的横截面和时间特征</h3>
+      <ul>
+        <li>低价股偏差显著更大。S&amp;P 500 中价格低于 15 美元的股票，按 weighted midpoint 衡量的平均偏差约为 52%；按 micro-price 衡量可达 97%。</li>
+        <li>1996年至2015年的长期样本显示，偏差在 2001 年附近接近于零，之后逐渐上升，2009 年后总体约稳定在 17% 左右。</li>
+        <li>2009年至2015年期间，大盘股、中盘股、小盘股的平均偏差约分别为 18%、12% 和 7%。</li>
+        <li>交易场所之间也有差异：例如 NYSE 平均偏差约 16%，Nasdaq BX 约 7%。</li>
+      </ul>
+      <h3>4. 交易方向与价值偏离确实相关</h3>
+      <p>
+        作者用回归检验交易方向与“真实基本价值相对于 midpoint 的偏离”之间的关系，发现二者存在显著正相关。论文报告的回归斜率约为 0.44，且在统计上显著，直接拒绝了 midpoint 有效价差无偏所需要的条件。
+      </p>
+    </section>
+
+    <section>
+      <h2>七、为什么这个偏差具有经济意义</h2>
+      <h3>1. 会改变流动性排序</h3>
+      <p>
+        偏差随着相对 tick size 变化，而相对 tick size 与股价密切相关。若直接用 midpoint，有些低价股会被错误地判断为流动性更差。
+      </p>
+      <h3>2. 会改变交易场所排名</h3>
+      <p>
+        不同交易场所的订单簿结构和交易机制不同，偏差程度也不同。论文发现，midpoint 方法给出的交易场所排名与基准估计一致的股票交易日仅约 39%。这意味着交易所执行质量或最佳执行比较可能被错误排序。
+      </p>
+      <h3>3. 会扭曲 HFT 与非 HFT 的绩效比较</h3>
+      <p>
+        在 Nasdaq HFT 样本中，使用 weighted midpoint 时，提供流动性的 HFT 获得的有效价差比非 HFT 高约 15%；但使用 midpoint 时，结论反而变成 HFT 获得的收益比非 HFT 低约 3%。同一组数据因为估计量不同而得到相反结论，说明该测量偏差足以影响研究推断。
+      </p>
+      <h3>4. 会损害流动性择时</h3>
+      <p>
+        作者模拟了只在基本价值跟踪方式上不同的流动性择时策略。基于 weighted midpoint 进行择时的投资者，不仅估计出的有效价差更低，基于成交价格计算的 execution shortfall 也更低。说明只盯 midpoint 的交易者可能会在不利时点支付过高的流动性成本。
+      </p>
+    </section>
+
+    <section>
+      <h2>八、对量化交易和交易成本分析的启示</h2>
+      <ol>
+        <li><strong>TCA 不应只使用 midpoint。</strong> 对高频策略、主动成交和盘口择时，应至少加入订单簿深度和买卖盘不平衡信息。</li>
+        <li><strong>低价股尤其需要修正。</strong> 固定 tick size 下，股价越低，相对 tick size 越大，midpoint 偏差通常越严重。</li>
+        <li><strong>交易所比较要使用统一基本价值。</strong> 跨交易场所比较时，应使用 NBBO 或其他跨市场统一的有效价格，而不是分别使用各交易所自己的 midpoint。</li>
+        <li><strong>回测中的成交成本模型可能偏乐观或偏悲观。</strong> 若用 midpoint 有效价差校准交易成本，可能错误估计不同股票、交易所或投资者群体的真实成本。</li>
+        <li><strong>可实时计算。</strong> weighted midpoint 只需最优买卖价和两侧深度；micro-price 的复杂部分可以用历史数据提前估计，盘中只做状态映射。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>九、论文的边界和需要注意的地方</h2>
+      <ul>
+        <li>真实基本价值本身不可观测，因此 weighted midpoint 和 micro-price 也不是“真值”，而是更合理的代理变量。</li>
+        <li>这些替代方法隐含假设订单簿包含主要相关信息；若加入更深层盘口、其他交易系统、相关证券或指数信息，估计可能进一步改进。</li>
+        <li>论文的核心偏差结论针对有效价差测度，并不意味着 midpoint 在所有应用中都存在同样问题。作者特别指出，在收益率或实际波动率等其他应用中，midpoint 与基本价值的偏离未必同样重要。</li>
+        <li>论文证明的是测量方法存在系统性偏差，不是说所有交易者都能稳定赚取该偏差，也不是说 weighted midpoint 或 micro-price 能保证降低所有策略的实际交易成本。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>十、最终总结</h2>
+      <div class="lead">
+        论文的完整论证链条是：
+        <strong>价格离散</strong>
+        → 买卖两侧真实成本不对称
+        → 交易者根据成本差异调整订单方向
+        → 交易方向与 midpoint 误差相关
+        → midpoint 有效价差系统性高估
+        → 流动性排序、交易场所评价和交易绩效比较可能被扭曲。
+      </div>
+      <p>
+        因此，作者建议在有效价差及交易成本研究中，用 weighted midpoint 或 micro-price 等更能反映订单簿信息的基本价值代理替代简单 midpoint。对量化交易而言，最直接的实践结论是：<strong>盘口不平衡不仅是价格方向信号，也是交易成本测量和流动性择时的重要信息。</strong>
+      </p>
+    </section>
+
+    <footer>
+      资料来源：本地文件《Bias in the effective bid-ask spread_billingual(1).pdf》。本文档为阅读总结，不替代论文原文；文中数字均按论文样本和统计口径表述。
+    </footer>
+  </main>
+</body>
+</html>
